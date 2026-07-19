@@ -1,0 +1,15 @@
+{
+  "name": "certificate-generator",
+  "version": "1.0.0",
+  "description": "Certificate Generator — monorepo root. Runs client and server together.",
+  "private": true,
+  "scripts": {
+    "start": "concurrently --names \"CLIENT,SERVER\" --prefix-colors \"cyan,yellow\" \"npm run dev --prefix client\" \"npm run dev --prefix server\"",
+    "client": "npm run dev --prefix client",
+    "server": "npm run dev --prefix server",
+    "install:all": "npm install --prefix client && npm install --prefix server"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

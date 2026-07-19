@@ -1,0 +1,24 @@
+{
+  "name": "certificate-server",
+  "version": "1.0.0",
+  "description": "Express backend for Certificate Generator — production-ready, modular architecture.",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": ["certificate", "express", "node"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "canvas": "^3.2.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.3.1",
+    "express-validator": "^7.1.0",
+    "morgan": "^1.10.0",
+    "pdf-lib": "^1.17.1"
+  }
+}

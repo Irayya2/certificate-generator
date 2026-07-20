@@ -17,7 +17,6 @@ const generatedDir = fileURLToPath(new URL('./generated/', import.meta.url));
 // ─── Trust proxy (for rate limiting behind Nginx/Heroku) ─────────────────────
 app.set('trust proxy', 1);
 
-// ─── CORS ────────────────────────────────────────────────────────────────────
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:5174',
@@ -28,17 +27,26 @@ const allowedOrigins = [
   'http://localhost:5179',
   'http://localhost:5180',
   'http://localhost:4173',  // Vite preview
+  'https://certificate-two-sigma.vercel.app',
   process.env.FRONTEND_URL,
-].filter(Boolean);
+].filter(Boolean).map(url => url.trim().replace(/\/$/, ''));
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (e.g., curl, Postman) in development
-    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
-    callback(new Error(`CORS blocked: origin ${origin} not allowed.`));
+    // Allow requests with no origin (e.g., curl, Postman)
+    if (!origin) return callback(null, true);
+    
+    const normalizedOrigin = origin.trim().replace(/\/$/, '');
+    if (allowedOrigins.includes(normalizedOrigin)) {
+      return callback(null, true);
+    }
+    
+    console.warn(`[CORS Blocked] Origin: ${origin} is not whitelisted.`);
+    return callback(null, false);
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
+  optionsSuccessStatus: 200,
 }));
 
 // ─── Body Parsing ─────────────────────────────────────────────────────────────

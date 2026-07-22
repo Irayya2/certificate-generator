@@ -38,24 +38,31 @@ app.use((req, res, next) => {
 
 app.use(cors({
   origin: (origin, callback) => {
+    console.log(`[CORS Request] Incoming Origin: ${origin}`);
+    
     // Allow requests with no origin (e.g., curl, Postman)
-    if (!origin) return callback(null, true);
+    if (!origin) {
+      console.log(`[CORS Decision] ALLOWED (No origin provided) -> returning true`);
+      return callback(null, true);
+    }
     
     const normalizedOrigin = origin.trim().replace(/\/$/, '');
     
     // 1. Allow if origin equals FRONTEND_URL or localhost
     if (staticAllowedOrigins.includes(normalizedOrigin)) {
+      console.log(`[CORS Decision] ALLOWED (Matches staticAllowedOrigins) -> returning true`);
       return callback(null, true); // Sets Access-Control-Allow-Origin header
     }
     
     // 2. Allow if origin endsWith(".vercel.app") for preview deployments
     if (normalizedOrigin.endsWith('.vercel.app')) {
+      console.log(`[CORS Decision] ALLOWED (Matches .vercel.app suffix) -> returning true`);
       return callback(null, true);
     }
     
     // 3. Otherwise reject and log
-    console.warn(`[CORS Blocked] Origin: ${origin} is not whitelisted.`);
-    return callback(null, false);
+    console.warn(`[CORS Decision] REJECTED (Origin not whitelisted) -> returning Error`);
+    return callback(new Error('Not allowed by CORS'));
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],

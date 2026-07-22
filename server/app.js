@@ -28,6 +28,7 @@ const allowedOrigins = [
   'http://localhost:5180',
   'http://localhost:4173',  // Vite preview
   'https://certificate-two-sigma.vercel.app',
+  'https://certificate-generator-lyart-mu.vercel.app',
   process.env.FRONTEND_URL,
 ].filter(Boolean).map(url => url.trim().replace(/\/$/, ''));
 
@@ -38,15 +39,16 @@ app.use(cors({
     
     const normalizedOrigin = origin.trim().replace(/\/$/, '');
     if (allowedOrigins.includes(normalizedOrigin)) {
-      return callback(null, true);
+      return callback(null, true); // Sets Access-Control-Allow-Origin header
     }
     
     console.warn(`[CORS Blocked] Origin: ${origin} is not whitelisted.`);
+    // Returning false blocks the origin without throwing an error that crashes the server
     return callback(null, false);
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  optionsSuccessStatus: 200,
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  optionsSuccessStatus: 200, // For legacy browser support
 }));
 
 // ─── Body Parsing ─────────────────────────────────────────────────────────────

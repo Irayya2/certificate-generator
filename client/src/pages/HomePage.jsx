@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ArrowDownTrayIcon, CheckCircleIcon, DocumentArrowDownIcon, SparklesIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { useCertificateForm } from '../hooks/useCertificateForm';
 import { API_ORIGIN } from '../services/certificateService';
+import DeveloperLoadingModal from '../components/DeveloperLoadingModal';
 
 function DownloadButton({ href, filename, type, icon: Icon }) {
   const [downloading, setDownloading] = useState(false);
@@ -45,6 +46,9 @@ export default function HomePage() {
 
   return (
     <div className="app-shell">
+      {/* High-Tech Developer Rotating Avatar Loading Modal */}
+      <DeveloperLoadingModal isOpen={isLoading} studentName={formData.name} />
+
       <div className="ambient ambient-one" />
       <div className="ambient ambient-two" />
       <main className="page-wrap">

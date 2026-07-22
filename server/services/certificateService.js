@@ -71,62 +71,82 @@ function fittedFont(ctx, text, cfg) {
  * @returns {Promise<{ id: string, pngFilename: string, pdfFilename: string }>}
  */
 export async function createCertificateFiles({ name, semester }) {
-  await fs.mkdir(generatedDir, { recursive: true });
-
-  // ── Load the template ─────────────────────────────────────────────────────
-  let template;
   try {
-    template = await loadImage(templatePath);
-  } catch (cause) {
-    const error = new Error(
-      'The certificate template could not be loaded. ' +
-      'Ensure "my certificate.png" exists in the project root.'
-    );
-    error.statusCode = 500;
-    error.cause = cause;
+    // Top-level constants 'generatedDir' and 'templatePath' are used.
+    
+    console.log(`[3] Template image path: ${templatePath}`);
+    console.log(`    Generated dir path: ${generatedDir}`);
+    
+    // [4] Check if template file exists
+    console.log(`[4] Check if template file exists`);
+    try {
+      await fs.access(templatePath);
+    } catch (e) {
+      throw new Error(`Template file does not exist at ${templatePath}`);
+    }
+    
+    // Ensure output directory exists
+    await fs.mkdir(generatedDir, { recursive: true });
+
+    // [5] Load image
+    console.log(`[5] Load image`);
+    const template = await loadImage(templatePath);
+
+    // [6] Create canvas
+    console.log(`[6] Create canvas`);
+    const canvas = createCanvas(template.width, template.height);
+    const ctx = canvas.getContext('2d');
+
+    // [7] Draw certificate
+    console.log(`[7] Draw certificate`);
+    ctx.drawImage(template, 0, 0);
+
+    const nameCfg = FIELD.NAME;
+    ctx.textAlign    = nameCfg.align;
+    ctx.textBaseline = nameCfg.baseline || 'middle';
+    ctx.fillStyle    = nameCfg.color;
+    fittedFont(ctx, name, nameCfg);
+    ctx.fillText(name, nameCfg.x, nameCfg.y);
+
+    if (semester !== undefined && semester !== null && String(semester).trim() !== '') {
+      const semText = String(semester);
+      const semCfg  = FIELD.SEMESTER;
+      ctx.textAlign    = semCfg.align;
+      ctx.textBaseline = semCfg.baseline || 'middle';
+      ctx.fillStyle    = semCfg.color;
+      fittedFont(ctx, semText, semCfg);
+      ctx.fillText(semText, semCfg.x, semCfg.y);
+    }
+
+    const base        = `Certificate_${safeFilename(name)}`;
+    const pngFilename = `${base}.png`;
+    const pdfFilename = `${base}.pdf`;
+    const pngPath     = path.join(generatedDir, pngFilename);
+    const pdfPath     = path.join(generatedDir, pdfFilename);
+
+    // [8] Export PNG
+    console.log(`[8] Export PNG`);
+    const pngBuffer = canvas.toBuffer('image/png');
+    await fs.writeFile(pngPath, pngBuffer);
+
+    // [9] Generate PDF
+    console.log(`[9] Generate PDF`);
+    const pdfDoc = await PDFDocument.create();
+    const pdfImg = await pdfDoc.embedPng(pngBuffer);
+    const page   = pdfDoc.addPage([pdfImg.width, pdfImg.height]);
+    page.drawImage(pdfImg, { x: 0, y: 0, width: pdfImg.width, height: pdfImg.height });
+    await fs.writeFile(pdfPath, await pdfDoc.save());
+
+    // [10] Save files
+    console.log(`[10] Save files`);
+    // Already written to disk above, just confirming successful save
+    console.log(`    Files saved at: ${pngPath}, ${pdfPath}`);
+
+    const id = `${base}-${Date.now()}`;
+    return { id, pngFilename, pdfFilename };
+  } catch (error) {
+    console.error(`[createCertificateFiles] ERROR:`, error.message);
+    if (error.stack) console.error(error.stack);
     throw error;
   }
-
-  const canvas = createCanvas(template.width, template.height);
-  const ctx = canvas.getContext('2d');
-
-  // ── Draw template ─────────────────────────────────────────────────────────
-  ctx.drawImage(template, 0, 0);
-
-  // ── Draw student name ─────────────────────────────────────────────────────
-  const nameCfg = FIELD.NAME;
-  ctx.textAlign    = nameCfg.align;
-  ctx.textBaseline = nameCfg.baseline || 'middle';
-  ctx.fillStyle    = nameCfg.color;
-  fittedFont(ctx, name, nameCfg);
-  ctx.fillText(name, nameCfg.x, nameCfg.y);
-
-  // ── Draw semester number ──────────────────────────────────────────────────
-  if (semester !== undefined && semester !== null && String(semester).trim() !== '') {
-    const semText = String(semester);
-    const semCfg  = FIELD.SEMESTER;
-    ctx.textAlign    = semCfg.align;
-    ctx.textBaseline = semCfg.baseline || 'middle';
-    ctx.fillStyle    = semCfg.color;
-    fittedFont(ctx, semText, semCfg);
-    ctx.fillText(semText, semCfg.x, semCfg.y);
-  }
-
-  // ── Save PNG ──────────────────────────────────────────────────────────────
-  const base        = `Certificate_${safeFilename(name)}`;
-  const pngFilename = `${base}.png`;
-  const pdfFilename = `${base}.pdf`;
-  const pngBuffer   = canvas.toBuffer('image/png');
-  await fs.writeFile(path.join(generatedDir, pngFilename), pngBuffer);
-
-  // ── Save PDF ──────────────────────────────────────────────────────────────
-  const pdfDoc = await PDFDocument.create();
-  const pdfImg = await pdfDoc.embedPng(pngBuffer);
-  const page   = pdfDoc.addPage([pdfImg.width, pdfImg.height]);
-  page.drawImage(pdfImg, { x: 0, y: 0, width: pdfImg.width, height: pdfImg.height });
-  await fs.writeFile(path.join(generatedDir, pdfFilename), await pdfDoc.save());
-
-  const id = `${base}-${Date.now()}`;
-  console.log(`[Certificate] Generated: ${pngFilename} | ${pdfFilename}`);
-  return { id, pngFilename, pdfFilename };
 }

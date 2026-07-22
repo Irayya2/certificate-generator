@@ -10,7 +10,7 @@ import HomePage from './pages/HomePage';
 export default function App() {
   return (
     <BrowserRouter>
-      <Toaster position="top-right" toastOptions={{ style: { background: '#102016', color: '#eaffef', border: '1px solid #3a7049' } }} />
+      <Toaster position="top-right" toastOptions={{ style: { background: '#0a1628', color: '#e0f0ff', border: '1px solid rgba(0,180,220,0.25)' } }} />
       <Routes>
         <Route path="/" element={<HomePage />} />
         {/* Future routes can be added here:

@@ -4,3 +4,7 @@ node_modules
 **/.env
 .env.local
 .env.production
+
+# Generated files
+server/generated/
+server/grid.png

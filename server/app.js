@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import certificateRoutes from './routes/certificateRoutes.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
-dotenv.config();
+dotenv.config({ path: path.join(path.dirname(fileURLToPath(import.meta.url)), '.env') });
 
 const app = express();
 const generatedDir = fileURLToPath(new URL('./generated/', import.meta.url));
@@ -96,7 +96,7 @@ app.use('/api', certificateRoutes);
 // origins, while /generated remains available for the in-page preview.
 app.get('/downloads/:filename', (req, res, next) => {
   const { filename } = req.params;
-  const isCertificateFile = /^CodeZone_Certificate_[A-Za-z0-9_]+\.(png|pdf)$/.test(filename);
+  const isCertificateFile = /^Certificate_[A-Za-z0-9_]+\.(png|pdf)$/.test(filename);
   if (!isCertificateFile || filename !== path.basename(filename)) {
     return res.status(404).json({ success: false, message: 'File not found.' });
   }

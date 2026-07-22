@@ -11,15 +11,15 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'https://certificate-p5lg.onrender.com',
+        target: 'http://localhost:5000',
         changeOrigin: true,
       },
       '/generated': {
-        target: 'https://certificate-p5lg.onrender.com',
+        target: 'http://localhost:5000',
         changeOrigin: true,
       },
       '/downloads': {
-        target: 'https://certificate-p5lg.onrender.com',
+        target: 'http://localhost:5000',
         changeOrigin: true,
       },
     },

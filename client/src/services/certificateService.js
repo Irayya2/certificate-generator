@@ -8,7 +8,14 @@ const apiClient = axios.create({ baseURL: `${API_ORIGIN}/api`, timeout: 30000 })
 
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => Promise.reject(new Error(error.response?.data?.message || 'Something went wrong. Please try again.')),
+  (error) => {
+    const responseData = error.response?.data || {};
+    const message = responseData.message || 'Something went wrong. Please try again.';
+    const apiError = new Error(message);
+    // Preserve the studentNotFound flag so the UI can react specifically
+    apiError.studentNotFound = responseData.studentNotFound === true;
+    return Promise.reject(apiError);
+  },
 );
 
 export async function generateCertificate(payload) {

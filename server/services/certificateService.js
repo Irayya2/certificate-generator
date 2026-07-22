@@ -127,23 +127,51 @@ export async function createCertificateFiles({ name, semester }) {
     // [8] Export PNG
     console.log(`[8] Export PNG`);
     const pngBuffer = canvas.toBuffer('image/png');
+    console.log(`    PNG buffer created, length: ${pngBuffer.length} bytes`);
     await fs.writeFile(pngPath, pngBuffer);
+    console.log(`    PNG file written to: ${pngPath}`);
 
-    // [9] Generate PDF
-    console.log(`[9] Generate PDF`);
-    const pdfDoc = await PDFDocument.create();
-    const pdfImg = await pdfDoc.embedPng(pngBuffer);
-    const page   = pdfDoc.addPage([pdfImg.width, pdfImg.height]);
-    page.drawImage(pdfImg, { x: 0, y: 0, width: pdfImg.width, height: pdfImg.height });
-    await fs.writeFile(pdfPath, await pdfDoc.save());
+    // [9] Generate PDF (TEMPORARILY DISABLED FOR CRASH ISOLATION)
+    console.log(`[9] Generate PDF - Starting PDF generation trace`);
+    
+    /* 
+    // Commented out to prevent the 502 OOM / Segfault crash on Render.
+    // If the API succeeds without this block, pdf-lib is the confirmed cause.
+    try {
+      console.log(`    [9.1] PDFDocument.create()`);
+      const pdfDoc = await PDFDocument.create();
+      
+      console.log(`    [9.2] pdfDoc.embedPng(pngBuffer)`);
+      const pdfImg = await pdfDoc.embedPng(pngBuffer);
+      
+      console.log(`    [9.3] pdfDoc.addPage()`);
+      const page = pdfDoc.addPage([pdfImg.width, pdfImg.height]);
+      
+      console.log(`    [9.4] page.drawImage()`);
+      page.drawImage(pdfImg, { x: 0, y: 0, width: pdfImg.width, height: pdfImg.height });
+      
+      console.log(`    [9.5] pdfDoc.save()`);
+      const pdfBytes = await pdfDoc.save();
+      console.log(`    PDF buffer created, length: ${pdfBytes.length} bytes`);
+      
+      console.log(`    [9.6] fs.writeFile()`);
+      await fs.writeFile(pdfPath, pdfBytes);
+    } catch (pdfError) {
+      console.error(`[9] PDF Generation Failed:`, pdfError.message);
+      if (pdfError.stack) console.error(pdfError.stack);
+      // We could throw here, but we are disabling it entirely.
+    }
+    */
+    
+    console.log(`    [9.7] PDF generation skipped for crash isolation.`);
 
     // [10] Save files
     console.log(`[10] Save files`);
     // Already written to disk above, just confirming successful save
-    console.log(`    Files saved at: ${pngPath}, ${pdfPath}`);
+    console.log(`    Files saved at: ${pngPath}, (PDF SKIPPED)`);
 
     const id = `${base}-${Date.now()}`;
-    return { id, pngFilename, pdfFilename };
+    return { id, pngFilename, pdfFilename: null }; // Returning null for PDF to avoid broken links
   } catch (error) {
     console.error(`[createCertificateFiles] ERROR:`, error.message);
     if (error.stack) console.error(error.stack);

@@ -32,6 +32,12 @@ const allowedOrigins = [
   process.env.FRONTEND_URL,
 ].filter(Boolean).map(url => url.trim().replace(/\/$/, ''));
 
+// Add logging before every middleware
+app.use((req, res, next) => {
+  console.log(req.method, req.originalUrl);
+  next();
+});
+
 app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (e.g., curl, Postman)
@@ -48,7 +54,7 @@ app.use(cors({
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
-  optionsSuccessStatus: 200, // For legacy browser support
+  optionsSuccessStatus: 204, // Return HTTP 204 for OPTIONS preflight
 }));
 
 // ─── Body Parsing ─────────────────────────────────────────────────────────────

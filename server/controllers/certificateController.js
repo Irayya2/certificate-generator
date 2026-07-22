@@ -4,6 +4,7 @@ import { findStudentByName } from '../services/supabaseClient.js';
 /** POST /api/generate — validates student in DB, then creates PNG + PDF certificate. */
 export async function generateCertificate(req, res, next) {
   try {
+    console.log("POST /api/generate reached");
     const name = req.body.name.trim();
 
     // ── 1. Verify student exists in the database ──────────────────────────────

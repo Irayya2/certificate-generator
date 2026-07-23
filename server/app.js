@@ -16,9 +16,16 @@ dotenv.config({ path: path.join(path.dirname(fileURLToPath(import.meta.url)), '.
 const app = express();
 const generatedDir = fileURLToPath(new URL('./generated/', import.meta.url));
 
-// ─── Trust proxy (for rate limiting behind Nginx/Heroku) ─────────────────────
+// ─── Trust proxy (for rate limiting behind Nginx/Heroku/Render) ───────────────
 app.set('trust proxy', 1);
 
+// ─── Task 7: Log req.method & req.originalUrl for EVERY incoming request ─────
+app.use((req, _res, next) => {
+  console.log(req.method, req.originalUrl);
+  next();
+});
+
+// ─── Task 4: Allowed Origins Configuration ────────────────────────────────────
 const staticAllowedOrigins = [
   'http://localhost:5173',
   'http://localhost:5174',
@@ -28,59 +35,50 @@ const staticAllowedOrigins = [
   'http://localhost:5178',
   'http://localhost:5179',
   'http://localhost:5180',
-  'http://localhost:4173',  // Vite preview
+  'http://localhost:4173', // Vite preview
+  'https://certificate-generator-lyart-mu.vercel.app',
   process.env.FRONTEND_URL,
 ].filter(Boolean).map(url => url.trim().replace(/\/$/, ''));
 
-// Add logging before every middleware
-app.use((req, res, next) => {
-  console.log(req.method, req.originalUrl);
-  next();
-});
-
-app.use(cors({
+const corsOptions = {
   origin: (origin, callback) => {
-    console.log(`[CORS Request] Incoming Origin: ${origin}`);
-    
-    // Allow requests with no origin (e.g., curl, Postman)
+    // Allow requests with no origin (e.g. curl, Postman)
     if (!origin) {
-      console.log(`[CORS Decision] ALLOWED (No origin provided) -> returning true`);
       return callback(null, true);
     }
-    
+
     const normalizedOrigin = origin.trim().replace(/\/$/, '');
-    
-    // 1. Allow if origin equals FRONTEND_URL or localhost
-    if (staticAllowedOrigins.includes(normalizedOrigin)) {
-      console.log(`[CORS Decision] ALLOWED (Matches staticAllowedOrigins) -> returning true`);
-      return callback(null, true); // Sets Access-Control-Allow-Origin header
-    }
-    
-    // 2. Allow if origin endsWith(".vercel.app") for preview deployments
-    if (normalizedOrigin.endsWith('.vercel.app')) {
-      console.log(`[CORS Decision] ALLOWED (Matches .vercel.app suffix) -> returning true`);
+
+    // Allow static allowed origins or any vercel.app deployment
+    if (
+      staticAllowedOrigins.includes(normalizedOrigin) ||
+      normalizedOrigin.endsWith('.vercel.app')
+    ) {
       return callback(null, true);
     }
-    
-    // 3. Otherwise reject and log
-    console.warn(`[CORS Decision] REJECTED (Origin not whitelisted) -> returning Error`);
-    return callback(new Error('Not allowed by CORS'));
+
+    console.warn(`[CORS REJECTED] Origin not whitelisted: ${origin}`);
+    return callback(null, false);
   },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
-  optionsSuccessStatus: 204, // Return HTTP 204 for OPTIONS preflight
-}));
+  optionsSuccessStatus: 204,
+};
+
+// ─── Task 1 & 2: CORS Middleware FIRST after app creation & logging ──────────
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 // ─── Body Parsing ─────────────────────────────────────────────────────────────
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// ─── HTTP Request Logging ─────────────────────────────────────────────────────
+// ─── HTTP Request Logging (Morgan) ────────────────────────────────────────────
 if (process.env.NODE_ENV !== 'test') {
   app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 }
 
-// ─── Global Rate Limiting ─────────────────────────────────────────────────────
+// ─── Rate Limiting ───────────────────────────────────────────────────────────
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100,
@@ -113,9 +111,7 @@ app.get('/health', (_req, res) => {
 // ─── API Routes ───────────────────────────────────────────────────────────────
 app.use('/api', certificateRoutes);
 
-// Cross-origin downloads need a server-sent Content-Disposition header. Using
-// this endpoint keeps downloads reliable when Vercel and Render use different
-// origins, while /generated remains available for the in-page preview.
+// Cross-origin downloads endpoint
 app.get('/downloads/:filename', async (req, res, next) => {
   const { filename } = req.params;
   const isCertificateFile = /^Certificate_[A-Za-z0-9_]+\.(png|pdf)$/.test(filename);
@@ -125,7 +121,6 @@ app.get('/downloads/:filename', async (req, res, next) => {
 
   const filePath = path.join(generatedDir, filename);
 
-  // If PDF requested but doesn't exist on disk, check if PNG exists and convert on-demand
   if (filename.endsWith('.pdf')) {
     try {
       await fs.promises.access(filePath);
@@ -153,12 +148,16 @@ app.get('/downloads/:filename', async (req, res, next) => {
 
 app.use('/generated', express.static(generatedDir, { maxAge: '1h' }));
 
-// ─── 404 Handler ─────────────────────────────────────────────────────────────
-app.use((_req, res) => {
+// ─── Task 6: 404 Handler (Does NOT intercept OPTIONS requests) ────────────────
+app.use((req, res) => {
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
   res.status(404).json({ success: false, message: 'Route not found.' });
 });
 
-// ─── Global Error Handler (must be last) ─────────────────────────────────────
+// ─── Task 5: Global Error Handler (MUST BE LAST) ─────────────────────────────
 app.use(errorHandler);
 
 export default app;
+

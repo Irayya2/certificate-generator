@@ -1,47 +1,51 @@
 import { useState, useEffect } from 'react';
-import { SparklesIcon, ShieldCheckIcon, CpuChipIcon } from '@heroicons/react/24/outline';
+import { SparklesIcon, ShieldCheckIcon, CpuChipIcon, CheckIcon } from '@heroicons/react/24/outline';
 
-const LOADING_STEPS = [
-  'Verifying student registration record...',
-  'Synthesizing high-res certificate template...',
-  'Applying official seal & signature marks...',
-  'Generating PDF document & download package...'
+const PROGRESS_STEPS = [
+  { id: 'validate', label: 'Validating student...' },
+  { id: 'create', label: 'Creating certificate...' },
+  { id: 'prepare', label: 'Preparing download...' }
 ];
 
 export default function DeveloperLoadingModal({ isOpen, studentName }) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  const [progress, setProgress] = useState(10);
+  const [progress, setProgress] = useState(15);
 
   useEffect(() => {
     if (!isOpen) {
       setCurrentStepIndex(0);
-      setProgress(10);
+      setProgress(15);
       return;
     }
 
-    // Progress bar incremental animation
+    // Smooth overall progress bar advancement
     const progressInterval = setInterval(() => {
       setProgress((prev) => {
         if (prev >= 92) return 95;
-        return prev + Math.floor(Math.random() * 6) + 3;
+        return prev + Math.floor(Math.random() * 5) + 3;
       });
-    }, 250);
+    }, 200);
 
-    // Step message rotation
-    const stepInterval = setInterval(() => {
-      setCurrentStepIndex((prev) => (prev + 1) % LOADING_STEPS.length);
-    }, 1400);
+    // Step progress transitions: 0 -> 1 -> 2
+    const step1Timer = setTimeout(() => setCurrentStepIndex(1), 1400);
+    const step2Timer = setTimeout(() => setCurrentStepIndex(2), 3200);
 
     return () => {
       clearInterval(progressInterval);
-      clearInterval(stepInterval);
+      clearTimeout(step1Timer);
+      clearTimeout(step2Timer);
     };
   }, [isOpen]);
 
   if (!isOpen) return null;
 
   return (
-    <div className="loading-overlay-backdrop" role="dialog" aria-modal="true" aria-label="Generating Certificate">
+    <div
+      className="loading-overlay-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Generating Certificate"
+    >
       <div className="loading-modal-card">
         {/* Corner HUD accent elements */}
         <div className="hud-corner hud-top-left" />
@@ -57,19 +61,17 @@ export default function DeveloperLoadingModal({ isOpen, studentName }) {
           <ShieldCheckIcon className="h-3.5 w-3.5" /> ENCRYPTED PIPELINE
         </div>
 
-        {/* Top Header Tag */}
+        {/* Header Badge */}
         <div className="dev-header-badge">
           <SparklesIcon className="h-4 w-4 text-amber-400 animate-pulse" />
-          <span>DEVELOPED BY</span>
+          <span>DEVELOPED BY BCA DEPT</span>
         </div>
 
-        {/* Central Rotating Developer Image Container */}
+        {/* Rotating Avatar Visual Stage */}
         <div className="dev-avatar-stage">
-          {/* Outer Pulsing Neon Ambient Glow */}
           <div className="glow-aura-pulse" />
           <div className="glow-aura-pulse glow-delay" />
 
-          {/* SVG Orbit Radar Rings */}
           <svg className="orbit-svg" viewBox="0 0 200 200">
             <circle cx="100" cy="100" r="92" className="orbit-ring orbit-outer" />
             <circle cx="100" cy="100" r="82" className="orbit-ring orbit-dashed-cw" />
@@ -77,32 +79,33 @@ export default function DeveloperLoadingModal({ isOpen, studentName }) {
             <circle cx="100" cy="100" r="62" className="orbit-ring orbit-inner-dots" />
           </svg>
 
-          {/* Conic Gradient Spinner Border */}
           <div className="conic-spinner-ring" />
 
-          {/* Round Developer Image with Rotation */}
           <div className="round-avatar-wrapper">
             <img 
               src="/developer.png" 
               alt="Developer" 
               className="round-developer-img" 
             />
-            {/* Shimmer Light Reflection Overlay */}
             <div className="avatar-shimmer" />
           </div>
         </div>
 
-        {/* Developer Title / Subtitle */}
-        <div className="dev-info">
-          <h3 className="dev-name">System Creator</h3>
-          <p className="dev-role">BCA Department · Certificate Engine</p>
+        {/* Requirement 5: Overlay title and estimated time notice */}
+        <div className="modal-title-block">
+          <h2 className="loading-modal-title">Generating your certificate...</h2>
+          <p className="loading-modal-subtitle">
+            <span className="hourglass-icon">⏳</span> Please wait 5–10 seconds.
+          </p>
         </div>
 
-        {/* Loading Message & Target Student */}
+        {/* Loading Status Box with Progress Bar & Step Indicators */}
         <div className="loading-status-box">
-          <div className="generating-for">
-            Generating Certificate for <strong className="student-highlight">{studentName || 'Student'}</strong>
-          </div>
+          {studentName && (
+            <div className="generating-for">
+              Roll No: <strong className="student-highlight">{studentName}</strong>
+            </div>
+          )}
 
           {/* Animated Progress Bar */}
           <div className="progress-bar-track">
@@ -111,11 +114,33 @@ export default function DeveloperLoadingModal({ isOpen, studentName }) {
             </div>
           </div>
 
-          <div className="progress-meta">
-            <span className="step-text animate-fade-in" key={currentStepIndex}>
-              {LOADING_STEPS[currentStepIndex]}
-            </span>
-            <span className="progress-percentage">{progress}%</span>
+          {/* Requirement 6: Step Progress Indicator */}
+          <div className="steps-container">
+            {PROGRESS_STEPS.map((step, idx) => {
+              const isCompleted = idx < currentStepIndex;
+              const isActive = idx === currentStepIndex;
+              const isPending = idx > currentStepIndex;
+
+              return (
+                <div
+                  key={step.id}
+                  className={`step-item ${
+                    isCompleted ? 'step-completed' : isActive ? 'step-active' : 'step-pending'
+                  }`}
+                >
+                  <span className="step-status-icon">
+                    {isCompleted ? (
+                      <span className="check-mark">✓</span>
+                    ) : isActive ? (
+                      <span className="spinner-icon">⏳</span>
+                    ) : (
+                      <span className="dot-icon">○</span>
+                    )}
+                  </span>
+                  <span className="step-label">{step.label}</span>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>

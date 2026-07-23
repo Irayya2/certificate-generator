@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { ArrowDownTrayIcon, CheckCircleIcon, DocumentArrowDownIcon, SparklesIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { useCertificateForm } from '../hooks/useCertificateForm';
 import { API_ORIGIN } from '../services/certificateService';
 import DeveloperLoadingModal from '../components/DeveloperLoadingModal';
+import Spinner from '../components/Spinner';
 
 function DownloadButton({ href, filename, type, icon: Icon }) {
   const [downloading, setDownloading] = useState(false);
@@ -41,12 +42,25 @@ function NotRegisteredBanner({ rollNo }) {
 }
 
 export default function HomePage() {
-  const { formData, error, isStudentNotFound, isLoading, certificate, handleChange, handleSubmit } = useCertificateForm();
-  const imageUrl = certificate ? `${API_ORIGIN}${certificate.pngUrl}?v=${certificate.id}` : null;
+  const { formData, error, isStudentNotFound, isLoading, buttonState, certificate, handleChange, handleSubmit } = useCertificateForm();
+  const imageUrl = certificate ? `${API_ORIGIN}${certificate.pngUrl}` : null;
+  const previewRef = useRef(null);
+
+  // Requirement 7: Automatically scroll to the generated certificate preview after success
+  useEffect(() => {
+    if (certificate && previewRef.current) {
+      const timer = setTimeout(() => {
+        previewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [certificate]);
+
+  const isFormDisabled = isLoading || buttonState === 'generating';
 
   return (
     <div className="app-shell">
-      {/* High-Tech Developer Rotating Avatar Loading Modal */}
+      {/* Requirement 5 & 6: Loading overlay & progress indicator */}
       <DeveloperLoadingModal isOpen={isLoading} studentName={formData.rollNo} />
 
       <div className="ambient ambient-one" />
@@ -82,10 +96,18 @@ export default function HomePage() {
         </section>
 
         <section className="generator-card">
-          <div className="card-header"><span className="step-number">01</span><div><h2>Generate your certificate</h2><p>Enter your roll number exactly as registered in the database.</p></div></div>
+          <div className="card-header">
+            <span className="step-number">01</span>
+            <div>
+              <h2>Generate your certificate</h2>
+              <p>Enter your roll number exactly as registered in the database.</p>
+            </div>
+          </div>
+
           <form onSubmit={handleSubmit} noValidate>
             <label htmlFor="roll_no">Roll Number <span>*</span></label>
             <div className={`input-wrap ${error && !isStudentNotFound ? 'has-error' : ''} ${isStudentNotFound ? 'has-error not-found-input' : ''}`}>
+              {/* Requirement 8: Disable form fields while generating */}
               <input
                 id="roll_no"
                 name="roll_no"
@@ -94,17 +116,38 @@ export default function HomePage() {
                 placeholder="e.g. BCA2301"
                 maxLength="20"
                 autoComplete="off"
+                disabled={isFormDisabled}
               />
               <span className="input-caret">↗</span>
             </div>
 
-            {/* Generic field error (validation etc.) */}
+            {/* Requirement 4: Display actual backend error message */}
             {error && !isStudentNotFound && (
               <p className="field-error" role="alert">{error}</p>
             )}
 
-            <button className="generate-button" type="submit" disabled={isLoading}>
-              {isLoading ? <><span className="spinner" /> Verifying &amp; Generating…</> : <><SparklesIcon className="h-5 w-5" /> Generate Certificate</>}
+            {/* Requirement 1, 2, 3, 10: Button states, loading spinner, colors, and 300ms transitions */}
+            <button
+              className={`generate-button ${buttonState}`}
+              type="submit"
+              disabled={isFormDisabled || buttonState === 'success'}
+            >
+              {buttonState === 'generating' || isLoading ? (
+                <>
+                  <Spinner size="sm" color="currentColor" />
+                  Generating...
+                </>
+              ) : buttonState === 'success' ? (
+                <>
+                  <CheckCircleIcon className="h-5 w-5" />
+                  Certificate Generated ✓
+                </>
+              ) : (
+                <>
+                  <SparklesIcon className="h-5 w-5" />
+                  Generate Certificate
+                </>
+              )}
             </button>
           </form>
 
@@ -116,15 +159,46 @@ export default function HomePage() {
           <p className="privacy-note">Your information is only used to create this certificate.</p>
         </section>
 
-        <section className={`preview-section ${certificate ? 'is-visible' : ''}`} aria-live="polite">
-          {certificate ? <>
-            <div className="success-line"><CheckCircleIcon className="h-5 w-5" /> Certificate ready for {certificate.name}</div>
-            <div className="preview-frame"><img src={imageUrl} alt={`Certificate awarded to ${certificate.name}`} /></div>
-            <div className="download-grid">
-              <DownloadButton href={certificate.pngDownloadUrl} filename={certificate.pngFilename} type="PNG" icon={ArrowDownTrayIcon} />
-              <DownloadButton href={certificate.pdfDownloadUrl} filename={certificate.pdfFilename} type="PDF" icon={DocumentArrowDownIcon} />
+        <section
+          ref={previewRef}
+          className={`preview-section ${certificate ? 'is-visible' : ''}`}
+          aria-live="polite"
+        >
+          {certificate ? (
+            <>
+              {/* Requirement 9: Success animation badge */}
+              <div className="certificate-ready-badge">
+                <CheckCircleIcon className="h-5 w-5 text-emerald-400" />
+                <span>✓ Certificate Ready!</span>
+              </div>
+              <div className="success-line">Certificate issued to <strong>{certificate.name}</strong></div>
+              <div className="preview-frame">
+                <img src={imageUrl} alt={`Certificate awarded to ${certificate.name}`} />
+              </div>
+              <div className="download-grid">
+                <DownloadButton
+                  href={certificate.pngDownloadUrl}
+                  filename={certificate.pngFilename}
+                  type="PNG"
+                  icon={ArrowDownTrayIcon}
+                />
+                <DownloadButton
+                  href={certificate.pdfDownloadUrl}
+                  filename={certificate.pdfFilename}
+                  type="PDF"
+                  icon={DocumentArrowDownIcon}
+                />
+              </div>
+            </>
+          ) : (
+            <div className="preview-placeholder">
+              <div className="placeholder-icon">🎬</div>
+              <div>
+                <strong>Your certificate will appear here</strong>
+                <span>Enter your roll number above and click Generate Certificate.</span>
+              </div>
             </div>
-          </> : <div className="preview-placeholder"><div className="placeholder-icon">🎬</div><div><strong>Your certificate will appear here</strong><span>Enter your roll number above and click Generate Certificate.</span></div></div>}
+          )}
         </section>
       </main>
       <footer>© {new Date().getFullYear()} · Gogte College of Commerce, BCA Department · Tilakwadi, Belgaum</footer>

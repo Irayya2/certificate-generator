@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import toast from 'react-hot-toast';
 import { generateCertificate } from '../services/certificateService';
 
@@ -22,6 +22,7 @@ export function useCertificateForm() {
   const [error, setError] = useState('');
   const [isStudentNotFound, setIsStudentNotFound] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [buttonState, setButtonState] = useState('idle'); // 'idle' | 'generating' | 'success'
   const [certificate, setCertificate] = useState(null);
 
   const handleChange = useCallback((event) => {
@@ -33,7 +34,11 @@ export function useCertificateForm() {
   }, [error]);
 
   const handleSubmit = useCallback(async (event) => {
-    event.preventDefault();
+    if (event) event.preventDefault();
+
+    // Requirement 2: Guard against duplicate requests while loading or in generating state
+    if (isLoading || buttonState === 'generating') return;
+
     const rollNo = formData.rollNo.trim();
 
     if (!rollNo) {
@@ -44,32 +49,66 @@ export function useCertificateForm() {
       return;
     }
 
+    // Requirement 1: Immediately after first click, set generating state
     setIsLoading(true);
+    setButtonState('generating');
     setError('');
     setIsStudentNotFound(false);
+
     try {
-      const data = await generateCertificate({ roll_no: rollNo });
-      setCertificate(data.data);
+      // Dispatch single POST /api/generate request
+      const body = await generateCertificate({ roll_no: rollNo });
+
+      const certificateData = body?.data;
+      if (!certificateData) {
+        throw new Error(`Unexpected response shape from server.`);
+      }
+
+      setCertificate(certificateData);
       setFormData({ rollNo });
+
+      // Requirement 3: After success, change button text to "Certificate Generated ✓" & color to green for 2s
+      setButtonState('success');
       toast.success('Certificate generated successfully.');
+
+      setTimeout(() => {
+        setButtonState('idle');
+      }, 2000);
     } catch (requestError) {
-      const message = requestError.message || 'We could not generate your certificate. Please try again.';
+      console.error('[useCertificateForm] handleSubmit error:', requestError);
+
+      // Requirement 4: Display actual backend error message instead of generic message
+      const message =
+        requestError.response?.data?.message ||
+        requestError.response?.data?.error ||
+        requestError.message ||
+        'We could not generate your certificate. Please try again.';
       const notFound = requestError.studentNotFound === true;
 
       setError(message);
       setIsStudentNotFound(notFound);
+      setButtonState('idle');
 
       if (notFound) {
-        // Play the custom error sound for unregistered students
         playErrorSound();
         toast.error(message, { duration: 5000, icon: '🚫' });
       } else {
         toast.error(message);
       }
     } finally {
+      // Requirement 11: Ensure loading state is cleared in finally{} even if an exception occurs
       setIsLoading(false);
     }
-  }, [formData]);
+  }, [formData, isLoading, buttonState]);
 
-  return { formData, error, isStudentNotFound, isLoading, certificate, handleChange, handleSubmit };
+  return {
+    formData,
+    error,
+    isStudentNotFound,
+    isLoading,
+    buttonState,
+    certificate,
+    handleChange,
+    handleSubmit
+  };
 }

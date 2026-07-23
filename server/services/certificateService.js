@@ -1,7 +1,7 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createCanvas, loadImage, registerFont } from 'canvas';
+import { createCanvas, loadImage } from 'canvas';
 import { PDFDocument } from 'pdf-lib';
 
 const here        = path.dirname(fileURLToPath(import.meta.url));
@@ -71,110 +71,113 @@ function fittedFont(ctx, text, cfg) {
  * @returns {Promise<{ id: string, pngFilename: string, pdfFilename: string }>}
  */
 export async function createCertificateFiles({ name, semester }) {
+  // Ensure output directory exists
+  await fs.mkdir(generatedDir, { recursive: true });
+
+  // ── 1. Load template ────────────────────────────────────────────────────────
+  console.log(`[3] Loading template: ${templatePath}`);
   try {
-    // Top-level constants 'generatedDir' and 'templatePath' are used.
-    
-    console.log(`[3] Template image path: ${templatePath}`);
-    console.log(`    Generated dir path: ${generatedDir}`);
-    
-    // [4] Check if template file exists
-    console.log(`[4] Check if template file exists`);
+    await fs.access(templatePath);
+  } catch {
+    throw new Error(`Template file not found at: ${templatePath}`);
+  }
+  const template = await loadImage(templatePath);
+
+  // ── 2. Draw on canvas ───────────────────────────────────────────────────────
+  console.log(`[4] Drawing certificate for "${name}", semester "${semester}"`);
+  const canvas = createCanvas(template.width, template.height);
+  const ctx    = canvas.getContext('2d');
+  ctx.drawImage(template, 0, 0);
+
+  // Name
+  const nameCfg = FIELD.NAME;
+  ctx.textAlign    = nameCfg.align;
+  ctx.textBaseline = nameCfg.baseline || 'alphabetic';
+  ctx.fillStyle    = nameCfg.color;
+  fittedFont(ctx, name, nameCfg);
+  ctx.fillText(name, nameCfg.x, nameCfg.y);
+
+  // Semester
+  if (semester !== undefined && semester !== null && String(semester).trim() !== '') {
+    const semText = String(semester);
+    const semCfg  = FIELD.SEMESTER;
+    ctx.textAlign    = semCfg.align;
+    ctx.textBaseline = semCfg.baseline || 'alphabetic';
+    ctx.fillStyle    = semCfg.color;
+    fittedFont(ctx, semText, semCfg);
+    ctx.fillText(semText, semCfg.x, semCfg.y);
+  }
+
+  const base        = `Certificate_${safeFilename(name)}`;
+  const pngFilename = `${base}.png`;
+  const pdfFilename = `${base}.pdf`;
+  const pngPath     = path.join(generatedDir, pngFilename);
+  const pdfPath     = path.join(generatedDir, pdfFilename);
+
+  // ── 3. Export PNG ───────────────────────────────────────────────────────────
+  console.log(`[5] Exporting PNG`);
+  const pngBuffer = canvas.toBuffer('image/png');
+  console.log(`    PNG buffer: ${pngBuffer.length} bytes`);
+  await fs.writeFile(pngPath, pngBuffer);
+  console.log(`    PNG saved: ${pngPath}`);
+
+  // ── 4. Generate PDF ─────────────────────────────────────────────────────────
+  console.log(`[6] Generating PDF`);
     try {
-      await fs.access(templatePath);
-    } catch (e) {
-      throw new Error(`Template file does not exist at ${templatePath}`);
-    }
-    
-    // Ensure output directory exists
-    await fs.mkdir(generatedDir, { recursive: true });
+      const logMem = (step) => {
+        const mem = process.memoryUsage();
+        console.log(`    [MEM] ${step} - RSS: ${Math.round(mem.rss / 1024 / 1024)}MB, HeapTotal: ${Math.round(mem.heapTotal / 1024 / 1024)}MB, HeapUsed: ${Math.round(mem.heapUsed / 1024 / 1024)}MB, Ext: ${Math.round(mem.external / 1024 / 1024)}MB`);
+      };
 
-    // [5] Load image
-    console.log(`[5] Load image`);
-    const template = await loadImage(templatePath);
+      console.log(`    PNG buffer length: ${pngBuffer.length} bytes`);
+      console.log(`    Image width: ${canvas.width}`);
+      console.log(`    Image height: ${canvas.height}`);
 
-    // [6] Create canvas
-    console.log(`[6] Create canvas`);
-    const canvas = createCanvas(template.width, template.height);
-    const ctx = canvas.getContext('2d');
-
-    // [7] Draw certificate
-    console.log(`[7] Draw certificate`);
-    ctx.drawImage(template, 0, 0);
-
-    const nameCfg = FIELD.NAME;
-    ctx.textAlign    = nameCfg.align;
-    ctx.textBaseline = nameCfg.baseline || 'middle';
-    ctx.fillStyle    = nameCfg.color;
-    fittedFont(ctx, name, nameCfg);
-    ctx.fillText(name, nameCfg.x, nameCfg.y);
-
-    if (semester !== undefined && semester !== null && String(semester).trim() !== '') {
-      const semText = String(semester);
-      const semCfg  = FIELD.SEMESTER;
-      ctx.textAlign    = semCfg.align;
-      ctx.textBaseline = semCfg.baseline || 'middle';
-      ctx.fillStyle    = semCfg.color;
-      fittedFont(ctx, semText, semCfg);
-      ctx.fillText(semText, semCfg.x, semCfg.y);
-    }
-
-    const base        = `Certificate_${safeFilename(name)}`;
-    const pngFilename = `${base}.png`;
-    const pdfFilename = `${base}.pdf`;
-    const pngPath     = path.join(generatedDir, pngFilename);
-    const pdfPath     = path.join(generatedDir, pdfFilename);
-
-    // [8] Export PNG
-    console.log(`[8] Export PNG`);
-    const pngBuffer = canvas.toBuffer('image/png');
-    console.log(`    PNG buffer created, length: ${pngBuffer.length} bytes`);
-    await fs.writeFile(pngPath, pngBuffer);
-    console.log(`    PNG file written to: ${pngPath}`);
-
-    // [9] Generate PDF (TEMPORARILY DISABLED FOR CRASH ISOLATION)
-    console.log(`[9] Generate PDF - Starting PDF generation trace`);
-    
-    /* 
-    // Commented out to prevent the 502 OOM / Segfault crash on Render.
-    // If the API succeeds without this block, pdf-lib is the confirmed cause.
-    try {
-      console.log(`    [9.1] PDFDocument.create()`);
+      logMem('Before PDFDocument.create()');
+      console.log(`    [9.1] PDFDocument.create() START`);
       const pdfDoc = await PDFDocument.create();
+      console.log(`    [9.1] PDFDocument.create() END`);
       
-      console.log(`    [9.2] pdfDoc.embedPng(pngBuffer)`);
-      const pdfImg = await pdfDoc.embedPng(pngBuffer);
+      // Convert to JPEG before embedding to save memory and avoid pdf-lib embedPng() OOM crash
+      logMem('Before JPEG conversion');
+      console.log(`    Converting to JPEG for memory-efficient PDF embedding...`);
+      const jpegBuffer = canvas.toBuffer('image/jpeg', { quality: 0.85 });
+      console.log(`    JPEG buffer length: ${jpegBuffer.length} bytes`);
       
-      console.log(`    [9.3] pdfDoc.addPage()`);
+      logMem('Before embed');
+      console.log(`    [9.2] pdfDoc.embedJpg(jpegBuffer) START`);
+      const pdfImg = await pdfDoc.embedJpg(jpegBuffer);
+      console.log(`    [9.2] pdfDoc.embedJpg(jpegBuffer) END`);
+      
+      logMem('Before addPage');
+      console.log(`    [9.3] pdfDoc.addPage() START`);
       const page = pdfDoc.addPage([pdfImg.width, pdfImg.height]);
+      console.log(`    [9.3] pdfDoc.addPage() END`);
       
-      console.log(`    [9.4] page.drawImage()`);
+      logMem('Before drawImage');
+      console.log(`    [9.4] page.drawImage() START`);
       page.drawImage(pdfImg, { x: 0, y: 0, width: pdfImg.width, height: pdfImg.height });
+      console.log(`    [9.4] page.drawImage() END`);
       
-      console.log(`    [9.5] pdfDoc.save()`);
+      logMem('Before pdfDoc.save()');
+      console.log(`    [9.5] pdfDoc.save() START`);
       const pdfBytes = await pdfDoc.save();
+      console.log(`    [9.5] pdfDoc.save() END`);
       console.log(`    PDF buffer created, length: ${pdfBytes.length} bytes`);
       
-      console.log(`    [9.6] fs.writeFile()`);
+      logMem('Before fs.writeFile()');
+      console.log(`    [9.6] fs.writeFile() START`);
       await fs.writeFile(pdfPath, pdfBytes);
+      console.log(`    [9.6] fs.writeFile() END`);
+      
+      logMem('After PDF generated');
     } catch (pdfError) {
       console.error(`[9] PDF Generation Failed:`, pdfError.message);
       if (pdfError.stack) console.error(pdfError.stack);
-      // We could throw here, but we are disabling it entirely.
     }
-    */
-    
-    console.log(`    [9.7] PDF generation skipped for crash isolation.`);
 
-    // [10] Save files
-    console.log(`[10] Save files`);
-    // Already written to disk above, just confirming successful save
-    console.log(`    Files saved at: ${pngPath}, (PDF SKIPPED)`);
-
-    const id = `${base}-${Date.now()}`;
-    return { id, pngFilename, pdfFilename: null }; // Returning null for PDF to avoid broken links
-  } catch (error) {
-    console.error(`[createCertificateFiles] ERROR:`, error.message);
-    if (error.stack) console.error(error.stack);
-    throw error;
-  }
+  // ── 5. Return file info ─────────────────────────────────────────────────────
+  const id = `${base}-${Date.now()}`;
+  console.log(`[7] Certificate files ready: ${pngFilename}, ${pdfFilename}`);
+  return { id, pngFilename, pdfFilename };
 }

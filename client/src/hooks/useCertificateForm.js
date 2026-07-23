@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { generateCertificate } from '../services/certificateService';
 
-const INITIAL_FORM = { name: '' };
+const INITIAL_FORM = { rollNo: '' };
 
 /** Plays the error sound once. Silently ignores browsers that block autoplay. */
 function playErrorSound() {
@@ -25,7 +25,7 @@ export function useCertificateForm() {
   const [certificate, setCertificate] = useState(null);
 
   const handleChange = useCallback((event) => {
-    setFormData({ name: event.target.value });
+    setFormData({ rollNo: event.target.value });
     if (error) {
       setError('');
       setIsStudentNotFound(false);
@@ -34,10 +34,10 @@ export function useCertificateForm() {
 
   const handleSubmit = useCallback(async (event) => {
     event.preventDefault();
-    const name = formData.name.trim();
+    const rollNo = formData.rollNo.trim();
 
-    if (!name) {
-      const message = 'Please enter your full name to continue.';
+    if (!rollNo) {
+      const message = 'Please enter your roll number to continue.';
       setError(message);
       setIsStudentNotFound(false);
       toast.error(message);
@@ -48,9 +48,9 @@ export function useCertificateForm() {
     setError('');
     setIsStudentNotFound(false);
     try {
-      const data = await generateCertificate({ name });
+      const data = await generateCertificate({ roll_no: rollNo });
       setCertificate(data.data);
-      setFormData({ name });
+      setFormData({ rollNo });
       toast.success('Certificate generated successfully.');
     } catch (requestError) {
       const message = requestError.message || 'We could not generate your certificate. Please try again.';

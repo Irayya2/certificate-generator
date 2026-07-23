@@ -1,25 +1,25 @@
 import { createCertificateFiles, safeFilename } from '../services/certificateService.js';
-import { findStudentByName } from '../services/supabaseClient.js';
+import { findStudentByRollNo } from '../services/supabaseClient.js';
 
-/** POST /api/generate — validates student in DB, then creates PNG + PDF certificate. */
+/** POST /api/generate — validates student by roll_no in DB, then creates PNG + PDF certificate. */
 export async function generateCertificate(req, res, next) {
   try {
-    const name = req.body.name?.trim();
-    console.log(`[1] Request received for name: "${name}"`);
+    const rollNo = req.body.roll_no?.trim();
+    console.log(`[1] Request received for roll_no: "${rollNo}"`);
 
     // ── 1. Verify student exists in the database ──────────────────────────────
-    const student = await findStudentByName(name);
+    const student = await findStudentByRollNo(rollNo);
 
     if (!student) {
-      console.log(`[generateCertificate] Student "${name}" not found in DB.`);
+      console.log(`[generateCertificate] Student with roll_no "${rollNo}" not found in DB.`);
       return res.status(404).json({
         success: false,
         studentNotFound: true,
-        message: `"${name}" is not registered or did not attend the workshop. Please check your name and try again.`,
+        message: `Roll No. "${rollNo}" is not registered or did not attend the workshop. Please check your roll number and try again.`,
       });
     }
     
-    console.log(`[2] Student found in Supabase: ${student.full_name}, Sem: ${student.sem}`);
+    console.log(`[2] Student found in Supabase: ${student.full_name}, Roll: ${student.roll_no}, Sem: ${student.sem}`);
 
     // ── 2. Use DB-confirmed name and semester for the certificate ─────────────
     const confirmedName = student.full_name;

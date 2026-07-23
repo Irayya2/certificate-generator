@@ -18,21 +18,21 @@ function DownloadButton({ href, filename, type, icon: Icon }) {
   );
 }
 
-/** Shown when the student's name was not found in the database. */
-function NotRegisteredBanner({ name }) {
+/** Shown when the student's roll number was not found in the database. */
+function NotRegisteredBanner({ rollNo }) {
   return (
     <div className="not-registered-banner" role="alert" aria-live="assertive">
       <div className="not-registered-icon">
         <ExclamationTriangleIcon className="h-8 w-8" />
       </div>
       <div className="not-registered-body">
-        <strong>Student Not Registered</strong>
+        <strong>Roll Number Not Registered</strong>
         <p>
-          <span className="not-registered-name">"{name}"</span> was not found in our workshop attendance records.
+          Roll No. <span className="not-registered-name">"{rollNo}"</span> was not found in our workshop attendance records.
         </p>
         <ul className="not-registered-hints">
-          <li>Double-check the spelling of your name.</li>
-          <li>Try your name exactly as provided during registration.</li>
+          <li>Double-check your roll number for any typos.</li>
+          <li>Try your roll number exactly as provided during registration.</li>
           <li>Contact the coordinator if you believe this is an error.</li>
         </ul>
       </div>
@@ -47,7 +47,7 @@ export default function HomePage() {
   return (
     <div className="app-shell">
       {/* High-Tech Developer Rotating Avatar Loading Modal */}
-      <DeveloperLoadingModal isOpen={isLoading} studentName={formData.name} />
+      <DeveloperLoadingModal isOpen={isLoading} studentName={formData.rollNo} />
 
       <div className="ambient ambient-one" />
       <div className="ambient ambient-two" />
@@ -82,11 +82,19 @@ export default function HomePage() {
         </section>
 
         <section className="generator-card">
-          <div className="card-header"><span className="step-number">01</span><div><h2>Generate your certificate</h2><p>Enter your name exactly as it appears on the attendance sheet.</p></div></div>
+          <div className="card-header"><span className="step-number">01</span><div><h2>Generate your certificate</h2><p>Enter your roll number exactly as registered in the database.</p></div></div>
           <form onSubmit={handleSubmit} noValidate>
-            <label htmlFor="name">Full name <span>*</span></label>
+            <label htmlFor="roll_no">Roll Number <span>*</span></label>
             <div className={`input-wrap ${error && !isStudentNotFound ? 'has-error' : ''} ${isStudentNotFound ? 'has-error not-found-input' : ''}`}>
-              <input id="name" name="name" value={formData.name} onChange={handleChange} placeholder="e.g. Alex Morgan" maxLength="120" autoComplete="name" />
+              <input
+                id="roll_no"
+                name="roll_no"
+                value={formData.rollNo}
+                onChange={handleChange}
+                placeholder="e.g. BCA2301"
+                maxLength="20"
+                autoComplete="off"
+              />
               <span className="input-caret">↗</span>
             </div>
 
@@ -102,7 +110,7 @@ export default function HomePage() {
 
           {/* Student not registered — special banner */}
           {isStudentNotFound && (
-            <NotRegisteredBanner name={formData.name.trim()} />
+            <NotRegisteredBanner rollNo={formData.rollNo.trim()} />
           )}
 
           <p className="privacy-note">Your information is only used to create this certificate.</p>
@@ -116,7 +124,7 @@ export default function HomePage() {
               <DownloadButton href={certificate.pngDownloadUrl} filename={certificate.pngFilename} type="PNG" icon={ArrowDownTrayIcon} />
               <DownloadButton href={certificate.pdfDownloadUrl} filename={certificate.pdfFilename} type="PDF" icon={DocumentArrowDownIcon} />
             </div>
-          </> : <div className="preview-placeholder"><div className="placeholder-icon">🎬</div><div><strong>Your certificate will appear here</strong><span>Enter your name above and click Generate Certificate.</span></div></div>}
+          </> : <div className="preview-placeholder"><div className="placeholder-icon">🎬</div><div><strong>Your certificate will appear here</strong><span>Enter your roll number above and click Generate Certificate.</span></div></div>}
         </section>
       </main>
       <footer>© {new Date().getFullYear()} · Gogte College of Commerce, BCA Department · Tilakwadi, Belgaum</footer>

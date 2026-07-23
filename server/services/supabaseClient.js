@@ -47,3 +47,25 @@ export async function findStudentByName(name) {
   return data; // null if no match
 }
 
+/**
+ * Look up a student by their roll number (exact match, case-insensitive).
+ * Returns the student row or null if not found.
+ * @param {string} rollNo
+ * @returns {Promise<{roll_no: string, sem: number, full_name: string} | null>}
+ */
+export async function findStudentByRollNo(rollNo) {
+  const { data, error } = await supabase
+    .from('students')
+    .select('roll_no, sem, full_name')
+    .ilike('roll_no', rollNo.trim())
+    .maybeSingle();
+
+  if (error) {
+    const err = new Error(`Database error: ${error.message}`);
+    err.statusCode = 500;
+    throw err;
+  }
+
+  return data; // null if no match
+}
+

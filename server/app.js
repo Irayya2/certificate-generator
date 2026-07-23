@@ -4,10 +4,12 @@ import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import path from 'node:path';
+import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import certificateRoutes from './routes/certificateRoutes.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import { convertPngToPdf } from './services/certificateService.js';
 
 dotenv.config({ path: path.join(path.dirname(fileURLToPath(import.meta.url)), '.env') });
 
@@ -114,14 +116,33 @@ app.use('/api', certificateRoutes);
 // Cross-origin downloads need a server-sent Content-Disposition header. Using
 // this endpoint keeps downloads reliable when Vercel and Render use different
 // origins, while /generated remains available for the in-page preview.
-app.get('/downloads/:filename', (req, res, next) => {
+app.get('/downloads/:filename', async (req, res, next) => {
   const { filename } = req.params;
   const isCertificateFile = /^Certificate_[A-Za-z0-9_]+\.(png|pdf)$/.test(filename);
   if (!isCertificateFile || filename !== path.basename(filename)) {
     return res.status(404).json({ success: false, message: 'File not found.' });
   }
 
-  return res.download(path.join(generatedDir, filename), filename, (error) => {
+  const filePath = path.join(generatedDir, filename);
+
+  // If PDF requested but doesn't exist on disk, check if PNG exists and convert on-demand
+  if (filename.endsWith('.pdf')) {
+    try {
+      await fs.promises.access(filePath);
+    } catch {
+      const pngFilename = filename.replace(/\.pdf$/, '.png');
+      const pngPath = path.join(generatedDir, pngFilename);
+      try {
+        await fs.promises.access(pngPath);
+        console.log(`[downloads] On-demand PDF generation requested for ${filename}`);
+        await convertPngToPdf(pngPath, filePath);
+      } catch (err) {
+        console.error('[downloads] On-demand PDF conversion error:', err);
+      }
+    }
+  }
+
+  return res.download(filePath, filename, (error) => {
     if (!error) return;
     if (error.code === 'ENOENT') {
       return res.status(404).json({ success: false, message: 'File not found or has expired.' });

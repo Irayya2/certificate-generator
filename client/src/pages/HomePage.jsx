@@ -113,7 +113,7 @@ export default function HomePage() {
                 name="roll_no"
                 value={formData.rollNo}
                 onChange={handleChange}
-                placeholder="e.g. BCA2301"
+                placeholder="e.g. 2XBCAXXX"
                 maxLength="20"
                 autoComplete="off"
                 disabled={isFormDisabled}

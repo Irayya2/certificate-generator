@@ -8,3 +8,5 @@ node_modules
 # Generated files
 server/generated/
 server/grid.png
+server/logs/
+*.log

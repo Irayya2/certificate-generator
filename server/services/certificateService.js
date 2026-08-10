@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createCanvas, loadImage } from 'canvas';
 import { PDFDocument } from 'pdf-lib';
+import logger from '../utils/logger.js';
 
 const here        = path.dirname(fileURLToPath(import.meta.url));
 const generatedDir = path.join(here, '..', 'generated');
@@ -12,11 +13,15 @@ export const safeFilename = (v) =>
   v.trim().replace(/[^a-z0-9]+/gi, '_').replace(/^_|_$/g, '').slice(0, 80) || 'Recipient';
 
 /** Helper to log memory usage at key steps */
-export function logMemory(step) {
+export function logMemory(step, reqLogger) {
   const mem = process.memoryUsage();
-  console.log(
-    `[MEM STATS] ${step.padEnd(42)} | RSS: ${Math.round(mem.rss / 1024 / 1024)}MB | HeapUsed: ${Math.round(mem.heapUsed / 1024 / 1024)}MB | HeapTotal: ${Math.round(mem.heapTotal / 1024 / 1024)}MB | External: ${Math.round(mem.external / 1024 / 1024)}MB`
-  );
+  const logObj = reqLogger || logger;
+  logObj.debug(`[MEM STATS] ${step}`, {
+    rssMB: Math.round(mem.rss / 1024 / 1024),
+    heapUsedMB: Math.round(mem.heapUsed / 1024 / 1024),
+    heapTotalMB: Math.round(mem.heapTotal / 1024 / 1024),
+    externalMB: Math.round(mem.external / 1024 / 1024),
+  });
 }
 
 /**
@@ -177,10 +182,10 @@ export async function createCertificateFiles({ name, semester, generatePdf = fal
 
   // 4. Generate PDF only if explicitly requested
   if (generatePdf) {
-    console.log(`[createCertificateFiles] PDF requested explicitly — generating PDF`);
+    logger.info(`[createCertificateFiles] PDF requested explicitly — generating PDF`);
     await convertPngToPdf(pngPath, pdfPath);
   } else {
-    console.log(`[createCertificateFiles] PDF optional — skipping PDF generation for speed & low RAM`);
+    logger.info(`[createCertificateFiles] PDF optional — skipping PDF generation for speed & low RAM`);
   }
 
   // 5. Immediately release canvas, context, and buffer references
